@@ -1,0 +1,8 @@
+llm:
+  # OPENAI 格式相容的 API Key
+  api_key: "your-api-key-here"
+  # 模型名稱
+  model: "gemma4:e4b"
+
+  # 如果使用相容 OpenAI 的其他服務, 請填寫其 base_url
+  base_url: "http://localhost:11434/v1"
