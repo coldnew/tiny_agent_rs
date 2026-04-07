@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>7 個檔案，1 個能跑的 AI Agent — Rust 版</strong><br/>
-  完整對應 <a href="../tiny_agent">tiny_agent (Python)</a>，用來學習 Rust 並理解 Agent 本質
+  完整對應 <a href="https://github.com/wp931120/tiny_agent.git">tiny_agent (Python)</a>，用來學習 Rust 並理解 Agent 本質
 </p>
 
 <p align="center">
