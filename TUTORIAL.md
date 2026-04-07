@@ -193,13 +193,13 @@ impl MemoryStore {
 
 ### 關鍵差異
 
-| Python | Rust | 說明 |
-|--------|------|------|
-| `self.messages.append(msg)` | `self.messages.push(msg)` | 加入元素的方法名稱不同 |
-| `def __init__(self, ...)` | `pub async fn new(...) -> Result<Self>` | Rust 沒有 __init__，用 new 慣例 |
-| `Dict[str, Any]` | `serde_json::Value` | JSON 動態型別 |
-| `List[...]` | `Vec<...>` | 動態陣列 |
-| `pathlib.Path` | `std::path::PathBuf` | 路徑類型 |
+| Python                      | Rust                                    | 說明                            |
+|-----------------------------|-----------------------------------------|---------------------------------|
+| `self.messages.append(msg)` | `self.messages.push(msg)`               | 加入元素的方法名稱不同          |
+| `def __init__(self, ...)`   | `pub async fn new(...) -> Result<Self>` | Rust 沒有 __init__，用 new 慣例 |
+| `Dict[str, Any]`            | `serde_json::Value`                     | JSON 動態型別                   |
+| `List[...]`                 | `Vec<...>`                              | 動態陣列                        |
+| `pathlib.Path`              | `std::path::PathBuf`                    | 路徑類型                        |
 
 ---
 
@@ -369,7 +369,7 @@ async def run(self, messages):
 
 ```rust
 // Rust
-pub async fn run(&self, messages: Vec<Value>, tx: &EventSender) {
+pub async fn run(&self, messages: Vec<Value>, tx: &EventSendr) {
     let stream = client.chat().create_stream(request).await?;
     while let Some(chunk) = stream.next().await {
         tx.send(json!({"type": "text_delta", "content": ...})).await;
@@ -582,57 +582,57 @@ cargo build --release
 
 ### 基本型別
 
-| Python | Rust | 說明 |
-|--------|------|------|
-| `str` | `&str` / `String` | 借用/擁有的字串 |
-| `int` | `i32`, `i64`, `u32`, `u64` | 整數（有無正負號 × 位元數） |
-| `float` | `f32`, `f64` | 浮點數 |
-| `bool` | `bool` | 布林值 |
-| `None` | `Option::None` | 無值 |
-| `list` | `Vec<T>` | 動態陣列 |
-| `dict` | `HashMap<K, V>` | 雜湊表 |
-| `tuple` | `(T1, T2)` | 元組 |
+| Python  | Rust                       | 說明                        |
+|---------|----------------------------|-----------------------------|
+| `str`   | `&str` / `String`          | 借用/擁有的字串             |
+| `int`   | `i32`, `i64`, `u32`, `u64` | 整數（有無正負號 × 位元數） |
+| `float` | `f32`, `f64`               | 浮點數                      |
+| `bool`  | `bool`                     | 布林值                      |
+| `None`  | `Option::None`             | 無值                        |
+| `list`  | `Vec<T>`                   | 動態陣列                    |
+| `dict`  | `HashMap<K, V>`            | 雜湊表                      |
+| `tuple` | `(T1, T2)`                 | 元組                        |
 
 ### 控制流程
 
-| Python | Rust |
-|--------|------|
-| `if x:` | `if x {` |
-| `elif x:` | `else if x {` |
-| `for i in range(10):` | `for i in 0..10 {` |
-| `for item in list:` | `for item in &vec {` |
-| `while True:` | `loop {` |
-| `break` | `break` |
-| `continue` | `continue` |
+| Python                | Rust                 |
+|-----------------------|----------------------|
+| `if x:`               | `if x {`             |
+| `elif x:`             | `else if x {`        |
+| `for i in range(10):` | `for i in 0..10 {`   |
+| `for item in list:`   | `for item in &vec {` |
+| `while True:`         | `loop {`             |
+| `break`               | `break`              |
+| `continue`            | `continue`           |
 
 ### 函式和類別
 
-| Python | Rust |
-|--------|------|
-| `def func(x: int) -> str:` | `fn func(x: i32) -> String {` |
-| `async def func():` | `async fn func() {` |
-| `class Foo:` | `struct Foo { ... }` + `impl Foo { ... }` |
-| `class Foo(Bar):` | `impl Bar for Foo { ... }` |
-| `super().__init__()` | 不適用（Rust 沒有繼承） |
+| Python                     | Rust                                      |
+|----------------------------|-------------------------------------------|
+| `def func(x: int) -> str:` | `fn func(x: i32) -> String {`             |
+| `async def func():`        | `async fn func() {`                       |
+| `class Foo:`               | `struct Foo { ... }` + `impl Foo { ... }` |
+| `class Foo(Bar):`          | `impl Bar for Foo { ... }`                |
+| `super().__init__()`       | 不適用（Rust 沒有繼承）                   |
 
 ### 錯誤處理
 
-| Python | Rust |
-|--------|------|
+| Python                            | Rust                                           |
+|-----------------------------------|------------------------------------------------|
 | `try: ... except Exception as e:` | `match result { Ok(v) => ..., Err(e) => ... }` |
-| `raise ValueError("msg")` | `return Err(anyhow!("msg"))` |
-| `x = func() or "default"` | `x = func().unwrap_or("default")` |
-| `x = d.get("key")` | `x = map.get("key")` → `Option<&V>` |
+| `raise ValueError("msg")`         | `return Err(anyhow!("msg"))`                   |
+| `x = func() or "default"`         | `x = func().unwrap_or("default")`              |
+| `x = d.get("key")`                | `x = map.get("key")` → `Option<&V>`            |
 
 ### 非同步
 
-| Python | Rust |
-|--------|------|
-| `await coroutine()` | `coroutine().await` |
-| `asyncio.gather(*tasks)` | `tokio::join!()` 或 `futures::join_all()` |
+| Python                        | Rust                                         |
+|-------------------------------|----------------------------------------------|
+| `await coroutine()`           | `coroutine().await`                          |
+| `asyncio.gather(*tasks)`      | `tokio::join!()` 或 `futures::join_all()`    |
 | `asyncio.create_task(coro())` | `tokio::spawn(async move { coro().await; })` |
-| `async for x in gen:` | `while let Some(x) = stream.next().await {` |
-| `yield x` | `tx.send(x).await` (channel 模式) |
+| `async for x in gen:`         | `while let Some(x) = stream.next().await {`  |
+| `yield x`                     | `tx.send(x).await` (channel 模式)            |
 
 ---
 
