@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiny Agent | Terminal</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        cyber: {
+                            blue: '#00f0ff',
+                            green: '#00ffa3',
+                            purple: '#b000ff',
+                            dark: '#050505',
+                            panel: 'rgba(20, 20, 22, 0.75)',
+                            border: '#27272a'
+                        }
+                    },
+                    animation: {
+                        'radar-spin': 'radar 3s linear infinite',
+                        'pulse-glow': 'glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'slide-up': 'slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+                    },
+                    keyframes: {
+                        radar: {
+                            '0%': { transform: 'rotate(0deg)' },
+                            '100%': { transform: 'rotate(360deg)' },
+                        },
+                        glow: {
+                            '0%, 100%': { opacity: 1, boxShadow: '0 0 10px rgba(0,240,255,0.5)' },
+                            '50%': { opacity: 0.5, boxShadow: '0 0 2px rgba(0,240,255,0.2)' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: 0, transform: 'translateY(20px)' },
+                            '100%': { opacity: 1, transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <!-- Marked.js -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        body {
+            background-color: #050505;
+            color: #e4e4e7;
+            /* Subtle dot pattern background */
+            background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        /* Custom Scrollbar for HUD feel */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #3f3f46;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #52525b;
+        }
+
+        .glass-panel {
+            background: rgba(15, 15, 18, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid #27272a;
+        }
+
+        .hud-border {
+            border: 1px solid #27272a;
+            position: relative;
+        }
+
+        /* Corner accents to look like a high-tech terminal */
+        .hud-border::before,
+        .hud-border::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border: 1px solid #00f0ff;
+            pointer-events: none;
+        }
+
+        .hud-border::before {
+            top: -1px;
+            left: -1px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .hud-border::after {
+            bottom: -1px;
+            right: -1px;
+            border-left: none;
+            border-top: none;
+        }
+
+        /* Assistant Message Styling */
+        .prose {
+            color: #d4d4d8;
+        }
+
+        .prose strong {
+            color: #f4f4f5;
+            font-weight: 600;
+        }
+
+        .prose pre {
+            background-color: #121214 !important;
+            border: 1px solid #2a2a30;
+            border-radius: 6px;
+            padding: 1rem;
+            margin: 0.75rem 0;
+            overflow-x: auto;
+            color: #a1a1aa;
+        }
+
+        .prose code {
+            color: #00f0ff;
+            background: rgba(0, 240, 255, 0.1);
+            padding: 0.125rem 0.25rem;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875em;
+        }
+
+        .prose pre code {
+            color: inherit;
+            background: none;
+            padding: 0;
+        }
+
+        .chat-bubble-ai {
+            border-left: 2px solid #00f0ff;
+            background: linear-gradient(90deg, rgba(0, 240, 255, 0.05) 0%, transparent 100%);
+        }
+
+        .chat-bubble-user {
+            background: linear-gradient(135deg, #18181b 0%, #27272a 100%);
+            border: 1px solid #3f3f46;
+        }
+
+        .tool-indicator {
+            transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Input styling */
+        .cyber-input:focus-within {
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
+            border-color: rgba(0, 240, 255, 0.5);
+        }
+    </style>
+</head>
+
+<body class="h-screen flex overflow-hidden selection:bg-cyber-blue selection:text-black">
+
+    <!-- Left HUD: Telemetry & Status -->
+    <aside
+        class="w-80 glass-panel flex flex-col h-full z-10 border-r border-cyber-border shadow-[5px_0_30px_rgba(0,0,0,0.5)]">
+
+        <!-- Header -->
+        <div class="p-6 border-b border-cyber-border relative">
+            <div class="flex items-center justify-between mb-1">
+                <h1 class="text-2xl font-semibold tracking-wide text-white font-mono">TINY_AGENT</h1>
+                <span class="flex h-3 w-3 relative">
+                    <span
+                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyber-green opacity-75"></span>
+                    <span
+                        class="relative inline-flex rounded-full h-3 w-3 bg-cyber-green shadow-[0_0_8px_#00ffa3]"></span>
+                </span>
+            </div>
+            <p class="text-xs text-zinc-500 font-mono tracking-widest uppercase">System.Online // v1.0.0</p>
+        </div>
+
+        <!-- Telemetry: Token Usage -->
+        <div class="p-6 border-b border-cyber-border">
+            <h2 class="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-4 flex items-center">
+                <svg class="w-3 h-3 mr-2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Telemetry Data
+            </h2>
+            <div class="space-y-4 font-mono text-sm">
+                <div class="flex justify-between items-end border-b border-zinc-800/50 pb-2">
+                    <span class="text-zinc-400 text-xs">TX_PROMPT</span>
+                    <span id="token-prompt" class="text-cyber-green">0000</span>
+                </div>
+                <div class="flex justify-between items-end border-b border-zinc-800/50 pb-2">
+                    <span class="text-zinc-400 text-xs">RX_COMPLETION</span>
+                    <span id="token-completion" class="text-cyber-blue">0000</span>
+                </div>
+                <div class="flex justify-between items-end pt-1">
+                    <span class="font-bold text-zinc-300 text-xs">TOTAL_BANDWIDTH</span>
+                    <span id="token-total" class="font-bold text-white tracking-wider glow-text">0000</span>
+                </div>
+            </div>
+            <button type="button" onclick="clearContext()"
+                class="mt-6 w-full py-2.5 bg-zinc-900 border border-zinc-700 hover:border-cyber-blue hover:text-cyber-blue active:bg-zinc-800 focus-visible:ring-1 focus-visible:ring-cyber-blue focus:outline-none text-zinc-400 text-xs font-mono tracking-widest uppercase rounded-sm transition-all duration-300 relative overflow-hidden group">
+                <span class="relative z-10">Purge Memory</span>
+                <div
+                    class="absolute inset-0 bg-cyber-blue/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                </div>
+            </button>
+        </div>
+
+        <!-- Loaded Modules: Skills -->
+        <div class="p-6 border-b border-cyber-border flex-1 overflow-y-auto min-h-[150px]">
+            <h2 class="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-4 flex items-center">
+                <svg class="w-3 h-3 mr-2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                Active Skills
+            </h2>
+            <ul id="skills-list" class="space-y-4">
+                <li class="text-xs text-zinc-600 font-mono italic">Initializing modules...</li>
+            </ul>
+        </div>
+
+        <!-- Engine Capabilities: Tools -->
+        <div class="p-6 bg-zinc-900/30">
+            <h2 class="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-4 flex items-center">
+                <svg class="w-3 h-3 mr-2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Core Tools
+            </h2>
+            <ul id="tools-list" class="space-y-3">
+                <li class="text-xs text-zinc-600 font-mono italic">Scanning registry...</li>
+            </ul>
+        </div>
+    </aside>
+
+    <!-- Main Interface -->
+    <main class="flex-1 flex flex-col relative">
+
+        <!-- Floating Tool Execution Indicator -->
+        <div id="tool-float-card"
+            class="tool-indicator absolute top-6 inset-x-0 mx-auto w-max max-w-lg glass-panel text-zinc-200 border-cyber-blue/50 px-5 py-2.5 rounded shadow-[0_0_20px_rgba(0,240,255,0.15)] flex items-center space-x-4 opacity-0 transform -translate-y-4 pointer-events-none z-50">
+            <div class="relative w-4 h-4 rounded-full border border-cyber-blue/30 overflow-hidden">
+                <div class="absolute inset-0 border-t border-cyber-blue rounded-full animate-radar-spin"></div>
+            </div>
+            <span id="tool-float-text" class="text-xs font-mono tracking-wide text-cyber-blue glow-text">Establishing
+                localized link…</span>
+        </div>
+
+        <!-- Chat Stream Workspace -->
+        <div id="chat-container" class="flex-1 overflow-y-auto p-8 space-y-8 pb-32">
+            <!-- System Boot Message -->
+            <div class="flex animate-slide-up">
+                <div
+                    class="max-w-3xl chat-bubble-ai px-6 py-5 rounded-r-lg rounded-bl-lg shadow-sm text-zinc-300 font-mono text-sm leading-relaxed">
+                    <div class="text-[10px] text-cyber-blue/70 mb-2 uppercase tracking-widest flex items-center">
+                        <span class="w-1.5 h-1.5 bg-cyber-blue mr-2 rounded-full shadow-[0_0_5px_#00f0ff]"></span>
+                        System Override Initiated
+                    </div>
+                    <p>Greeting sequence activated. I am the Tiny Agent core logic framework. Auxiliary tools
+                        registered. Skill matrices linked. Awaiting input directive.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Command Input Console -->
+        <div
+            class="absolute bottom-0 inset-x-0 p-6 bg-gradient-to-t from-[#050505] via-[#050505] to-transparent pointer-events-none">
+            <div class="max-w-4xl mx-auto pointer-events-auto">
+                <form id="chat-form" class="relative group">
+                    <div
+                        class="absolute -inset-0.5 bg-gradient-to-r from-cyber-blue/20 to-cyber-purple/20 rounded-xl blur opacity-30 group-focus-within:opacity-100 transition duration-500">
+                    </div>
+                    <div
+                        class="relative flex items-center bg-zinc-900 border border-zinc-700 cyber-input rounded-xl overflow-hidden transition-all duration-300">
+                        <div class="pl-5 text-cyber-blue font-mono font-bold animate-pulse">></div>
+                        <input type="text" id="chat-input" name="message"
+                            class="w-full bg-transparent text-zinc-100 px-4 py-4 focus:outline-none focus:ring-0 font-sans text-base placeholder-zinc-600 selection:bg-cyber-blue selection:text-black"
+                            placeholder="Enter directive…" autocomplete="off" required>
+                        <button id="submit-btn" type="submit"
+                            class="pr-5 pl-2 py-4 text-zinc-400 hover:text-cyber-green disabled:opacity-30 disabled:hover:text-zinc-400 focus-visible:text-cyber-green focus:outline-none transition-colors">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                            </svg>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Right HUD: Workspace & Memory -->
+    <aside
+        class="w-80 glass-panel flex flex-col h-full z-10 border-l border-cyber-border shadow-[-5px_0_30px_rgba(0,0,0,0.5)]">
+
+        <!-- Extracted Persistent Memory -->
+        <div class="p-6 border-b border-cyber-border flex-1 overflow-y-auto">
+            <h2 class="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-4 flex items-center">
+                <svg class="w-3 h-3 mr-2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                Long-term Memory
+            </h2>
+            <div id="memory-content"
+                class="prose prose-invert prose-sm font-sans text-xs text-zinc-400 leading-relaxed">
+                <em class="text-zinc-600 font-mono">No persistent memory established...</em>
+            </div>
+        </div>
+
+        <!-- Workspace Outputs -->
+        <div class="p-6 border-cyber-border flex-1 overflow-y-auto min-h-[50%] bg-zinc-900/30">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-[10px] uppercase font-bold tracking-widest text-zinc-500 flex items-center relative">
+                    <svg class="w-3 h-3 mr-2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                    </svg>
+                    Workspace Outputs
+                    <span id="outputs-ping"
+                        class="absolute -right-4 top-1 w-1.5 h-1.5 rounded-full bg-cyber-blue opacity-0 transition-opacity duration-300 shadow-[0_0_4px_#00f0ff]"></span>
+                </h2>
+                <!-- Add File Upload Button -->
+                <label for="file-upload" class="cursor-pointer text-zinc-400 hover:text-cyber-green transition-colors"
+                    title="Upload File to Workspace">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    <input id="file-upload" type="file" class="hidden" onchange="handleFileUpload(event)">
+                </label>
+            </div>
+            <ul id="outputs-list" class="space-y-3">
+                <li class="text-xs text-zinc-600 font-mono italic">No artifacts detected...</li>
+            </ul>
+        </div>
+    </aside>
+
+    <script>
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+        const chatContainer = document.getElementById('chat-container');
+        const toolCard = document.getElementById('tool-float-card');
+        const toolText = document.getElementById('tool-float-text');
+
+        const elTokenPrompt = document.getElementById('token-prompt');
+        const elTokenCompletion = document.getElementById('token-completion');
+        const elTokenTotal = document.getElementById('token-total');
+
+        let isGenerating = false;
+        let cumulativeTokens = { prompt: 0, completion: 0 };
+
+        async function fetchStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+
+                const skillsList = document.getElementById('skills-list');
+                if (data.skills && data.skills.length > 0) {
+                    skillsList.innerHTML = data.skills.map(s => `
+                        <li class="hud-border bg-zinc-900/50 p-3 rounded-sm">
+                            <div class="flex items-center mb-1">
+                                <span class="flex-shrink-0 h-1.5 w-1.5 rounded-full ${s.active ? 'bg-cyber-green shadow-[0_0_5px_#00ffa3]' : 'bg-zinc-600'} mr-2"></span>
+                                <p class="text-xs font-mono font-medium text-zinc-300">${s.name}</p>
+                            </div>
+                            <p class="text-[10px] text-zinc-500 mt-1 line-clamp-2 leading-relaxed" title="${s.description}">${s.description}</p>
+                        </li>
+                    `).join('');
+                } else {
+                    skillsList.innerHTML = '<li class="text-xs text-zinc-700 font-mono italic">No skills mounted.</li>';
+                }
+
+                const toolsList = document.getElementById('tools-list');
+                if (data.tools && data.tools.length > 0) {
+                    toolsList.innerHTML = data.tools.map(t => `
+                        <li class="flex items-baseline space-x-2 border-l-2 border-zinc-800 pl-2 opacity-80 hover:opacity-100 transition-opacity">
+                            <span class="text-[11px] font-mono text-cyber-blue">${t.name}()</span>
+                        </li>
+                    `).join('');
+                } else {
+                    toolsList.innerHTML = '<li class="text-xs text-zinc-700 font-mono italic">Registry empty.</li>';
+                }
+            } catch (error) {
+                console.error("Failed to load telemetry:", error);
+            }
+        }
+
+        function formatBytes(bytes, decimals = 1) {
+            if (!+bytes) return '0 B';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+        }
+
+        async function fetchOutputs() {
+            try {
+                const res = await fetch('/api/outputs');
+                const data = await res.json();
+                const outputsList = document.getElementById('outputs-list');
+                const ping = document.getElementById('outputs-ping');
+
+                // Show ping indicator briefly
+                ping.classList.remove('opacity-0');
+                setTimeout(() => ping.classList.add('opacity-0'), 800);
+
+                if (data.files && data.files.length > 0) {
+                    outputsList.innerHTML = data.files.map(f => {
+                        const targetBlank = (f.name.endsWith('.html') || f.name.endsWith('.pdf') || f.name.match(/\\.(png|jpe?g|svg|gif|webp)$/i)) ? 'target="_blank"' : '';
+                        const dlAttr = f.name.endsWith('.pptx') ? `download="${f.name}"` : '';
+
+                        return `
+                        <li class="flex items-center justify-between group py-1.5 border-b border-zinc-900/50 last:border-0 hover:bg-zinc-900/30 -mx-2 px-2 rounded transition-colors">
+                            <div class="flex flex-col flex-1 min-w-0 pr-3">
+                                <a href="/outputs/${f.name}" ${targetBlank} ${dlAttr} class="text-xs font-mono text-zinc-300 hover:text-cyber-green truncate block font-medium transition-colors">
+                                    ${f.name}
+                                </a>
+                                <span class="text-[10px] text-zinc-600 font-mono tracking-wider mt-0.5">${formatBytes(f.size)}</span>
+                            </div>
+                            <div class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <a href="/outputs/${f.name}" ${dlAttr} ${f.name.endsWith('.pptx') ? '' : 'target="_blank"'} class="text-zinc-500 hover:text-cyber-blue transition-colors flex-shrink-0" title="${f.name.endsWith('.pptx') ? 'Download' : 'Open'}">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${f.name.endsWith('.pptx') ? 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4' : 'M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14'}" />
+                                    </svg>
+                                </a>
+                                <button onclick="deleteOutput('${f.name}')" class="text-zinc-500 hover:text-red-500 transition-colors flex-shrink-0 focus:outline-none cursor-pointer" title="Delete">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </li>
+                    `}).join('');
+                } else {
+                    outputsList.innerHTML = '<li class="text-xs text-zinc-700 font-mono italic">No artifacts detected...</li>';
+                }
+            } catch (error) {
+                console.error("Failed to fetch outputs:", error);
+            }
+        }
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                // Show uploading state cursor
+                document.body.style.cursor = 'wait';
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    // Refresh workspace outputs
+                    fetchOutputs();
+                } else {
+                    console.error("Upload failed:", data.message);
+                    alert("Upload failed: " + data.message);
+                }
+            } catch (error) {
+                console.error("Upload error:", error);
+                alert("Upload error.");
+            } finally {
+                document.body.style.cursor = 'default';
+                event.target.value = ''; // Reset input
+            }
+        }
+
+        async function deleteOutput(filename) {
+            if (!confirm(`Are you sure you want to delete ${filename}?`)) {
+                return;
+            }
+            try {
+                const res = await fetch(`/api/outputs/${encodeURIComponent(filename)}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    fetchOutputs();
+                } else {
+                    alert("Error deleting file: " + data.message);
+                }
+            } catch (error) {
+                console.error("Delete failed:", error);
+                alert("Failed to delete the file.");
+            }
+        }
+
+        async function fetchMemory() {
+            try {
+                const res = await fetch('/api/memory');
+                const data = await res.json();
+                const memContent = document.getElementById('memory-content');
+
+                if (data.long_term_memory) {
+                    memContent.innerHTML = marked.parse(data.long_term_memory);
+                } else {
+                    memContent.innerHTML = '<em class="text-zinc-600 font-mono">No persistent memory established...</em>';
+                }
+            } catch (error) {
+                console.error("Failed to fetch memory:", error);
+            }
+        }
+
+        async function fetchHistory() {
+            try {
+                const res = await fetch('/api/history');
+                const data = await res.json();
+
+                // 恢复 Tokens
+                if (data.tokens) {
+                    cumulativeTokens = data.tokens;
+                    updateTokenUI(cumulativeTokens.prompt, cumulativeTokens.completion, cumulativeTokens.prompt + cumulativeTokens.completion);
+                }
+
+                // 恢复 Messages 渲染
+                if (data.messages && data.messages.length > 0) {
+                    let assistantBuffer = "";
+                    const flushAssistant = () => {
+                        if (assistantBuffer.trim()) {
+                            appendAssistantMessage(assistantBuffer.trim());
+                            assistantBuffer = "";
+                        }
+                    };
+
+                    data.messages.forEach(msg => {
+                        if (msg.role === 'system') return; // Skip system prompts
+
+                        if (msg.role === 'user') {
+                            flushAssistant();
+                            const content = Array.isArray(msg.content) ? msg.content.find(c => c.type === 'text')?.text || '' : msg.content;
+                            appendUserMessage(content);
+                        } else if (msg.role === 'assistant') {
+                            if (msg.content) {
+                                assistantBuffer += msg.content + "\n";
+                            }
+                            if (msg.tool_calls && msg.tool_calls.length > 0) {
+                                msg.tool_calls.forEach(tc => {
+                                    if (tc.type === 'function') {
+                                        let argsParsed = tc.function.arguments || "{}";
+                                        try {
+                                            argsParsed = JSON.stringify(JSON.parse(argsParsed), null, 2);
+                                        } catch (e) { }
+                                        assistantBuffer += `\n\n> 🛠 **正在调用工具/技能**: \`${tc.function.name}\`\n> **参数**:\n> \`\`\`json\n> ${argsParsed.replace(/\n/g, '\n> ')}\n> \`\`\`\n> \n`;
+                                    }
+                                });
+                            }
+                        } else if (msg.role === 'tool') {
+                            let resStr = msg.content || "执行完毕";
+                            if (resStr.length > 500) {
+                                resStr = resStr.substring(0, 500) + "... (truncated for display)";
+                            }
+                            resStr = resStr.replace(/\n/g, ' ');
+                            assistantBuffer += `> ✅ **执行结果**: \`${resStr}\`\n\n`;
+                        }
+                    });
+                    flushAssistant(); // Flush any remaining at the end
+                }
+            } catch (error) {
+                console.error("Failed to fetch history:", error);
+            }
+        }
+
+        async function clearContext() {
+            await fetch('/api/clear', { method: 'POST' });
+            chatContainer.innerHTML = '';
+            cumulativeTokens = { prompt: 0, completion: 0 };
+            updateTokenUI(0, 0, 0);
+            appendSystemMessage("SYS_OP: Memory wiped successfully.");
+            fetchMemory();
+        }
+
+        // Format number to 4 digits for that tech UI feel
+        const pad0 = num => String(num).padStart(4, '0');
+
+        function updateTokenUI(prompt, comp, total) {
+            elTokenPrompt.textContent = pad0(prompt);
+            elTokenCompletion.textContent = pad0(comp);
+            elTokenTotal.textContent = pad0(total);
+        }
+
+        function showToolIndicator(text) {
+            toolText.textContent = text;
+            toolCard.classList.remove('opacity-0', '-translate-y-4');
+        }
+
+        function hideToolIndicator() {
+            toolCard.classList.add('opacity-0', '-translate-y-4');
+        }
+
+        function appendUserMessage(text) {
+            const div = document.createElement('div');
+            div.className = "flex justify-end animate-slide-up mb-4";
+            div.innerHTML = `
+                <div class="max-w-2xl chat-bubble-user px-5 py-3 rounded-l-lg rounded-tr-lg shadow-md text-zinc-200">
+                    <p class="whitespace-pre-wrap font-sans text-[15px]">${text}</p>
+                </div>
+            `;
+            chatContainer.appendChild(div);
+            scrollToBottom();
+        }
+
+        function appendSystemMessage(text) {
+            const div = document.createElement('div');
+            div.className = "flex animate-slide-up mb-4";
+            div.innerHTML = `
+                <div class="max-w-3xl chat-bubble-ai px-6 py-4 border border-cyber-border rounded-r-lg rounded-bl-lg shadow-sm text-zinc-500 font-mono text-[11px] leading-relaxed italic">
+                    <p>${text}</p>
+                </div>
+            `;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function appendAssistantMessage(text) {
+            // 解析并渲染 AI 返回的 Markdown
+            const renderedHtml = marked.parse(text);
+            const div = document.createElement('div');
+            div.className = "flex animate-slide-up relative group mb-8";
+            // ... (keep the rest of the style identical to Stream bubbles)
+            div.innerHTML = `
+                <div class="relative max-w-3xl w-full">
+                    <div class="chat-bubble-ai px-7 py-5 rounded-r-xl rounded-bl-xl shadow-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors">
+                        <div class="text-[10px] text-zinc-500 mb-3 uppercase tracking-widest flex items-center font-bold">
+                            <svg class="w-3 h-3 mr-1.5 text-cyber-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            Response <span class="ml-2 text-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity">restored</span>
+                        </div>
+                        <div class="prose prose-invert prose-sm prose-zinc max-w-none text-zinc-300 leading-relaxed font-sans">${renderedHtml}</div>
+                    </div>
+                </div>
+            `;
+            chatContainer.appendChild(div);
+            // 滚动到最底部
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function scrollToBottom() {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function createAssistantBubble() {
+            const wrapper = document.createElement('div');
+            wrapper.className = "flex animate-slide-up mb-2";
+            const inner = document.createElement('div');
+            // Using standard prose for markdown rendering with custom styling
+            inner.className = "max-w-3xl chat-bubble-ai px-6 py-5 rounded-r-lg rounded-bl-lg shadow-sm text-zinc-300 font-sans text-[15px] leading-relaxed prose prose-invert prose-sm break-words";
+
+            wrapper.dataset.raw = "";
+            wrapper.appendChild(inner);
+            chatContainer.appendChild(wrapper);
+            return wrapper;
+        }
+
+        function appendAssistantText(wrapper, text) {
+            wrapper.dataset.raw += text;
+            const inner = wrapper.querySelector('div');
+            inner.innerHTML = marked.parse(wrapper.dataset.raw);
+            scrollToBottom();
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (isGenerating) return;
+            const msg = chatInput.value.trim();
+            if (!msg) return;
+
+            appendUserMessage(msg);
+            chatInput.value = '';
+
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            isGenerating = true;
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: msg })
+                });
+
+                if (!response.body) throw new Error("Stream unsupported.");
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let done = false;
+
+                let currentBubble = null;
+                let streamBuffer = '';
+
+                while (!done) {
+                    const { value, done: readerDone } = await reader.read();
+                    done = readerDone;
+                    if (value) {
+                        const chunk = decoder.decode(value, { stream: true });
+                        streamBuffer += chunk;
+                        const lines = streamBuffer.split('\n\n');
+                        // Keep the last incomplete line in the buffer
+                        streamBuffer = lines.pop();
+
+                        for (let line of lines) {
+                            if (line.trim().startsWith('data: ')) {
+                                const jsonStr = line.trim().substring(6);
+                                if (!jsonStr) continue;
+                                try {
+                                    const event = JSON.parse(jsonStr);
+
+                                    if (event.type === 'text_delta') {
+                                        if (!currentBubble) currentBubble = createAssistantBubble();
+                                        appendAssistantText(currentBubble, event.content);
+                                    }
+                                    else if (event.type === 'tool_call_start') {
+                                        showToolIndicator(`EXEC: ${event.name}()`);
+                                        if (!currentBubble) currentBubble = createAssistantBubble();
+
+                                        let argsParsed = event.arguments || "{}";
+                                        try {
+                                            argsParsed = JSON.stringify(JSON.parse(argsParsed), null, 2);
+                                        } catch (e) { }
+
+                                        const toolMsg = `\n\n> 🛠 **正在调用工具/技能**: \`${event.name}\`\n> **参数**:\n> \`\`\`json\n> ${argsParsed.replace(/\n/g, '\n> ')}\n> \`\`\`\n> \n`;
+                                        appendAssistantText(currentBubble, toolMsg);
+                                    }
+                                    else if (event.type === 'tool_call_end') {
+                                        showToolIndicator(`SUCCESS: Output processed.`);
+                                        let resStr = event.result_summary || "执行完毕";
+                                        resStr = resStr.replace(/\n/g, ' ');
+                                        const resMsg = `> ✅ **执行结果**: \`${resStr}\`\n\n`;
+                                        if (currentBubble) appendAssistantText(currentBubble, resMsg);
+                                        setTimeout(hideToolIndicator, 1500);
+                                    }
+                                    else if (event.type === 'token_usage') {
+                                        cumulativeTokens.prompt += event.prompt_tokens;
+                                        cumulativeTokens.completion += event.completion_tokens;
+                                        const tot = cumulativeTokens.prompt + cumulativeTokens.completion;
+                                        updateTokenUI(cumulativeTokens.prompt, cumulativeTokens.completion, tot);
+                                    }
+                                    else if (event.type === 'error') {
+                                        appendSystemMessage(`ERR: ${event.content}`);
+                                    }
+                                } catch (err) {
+                                    console.error("Stream parse err", err, jsonStr);
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error(error);
+                appendSystemMessage("SYS_ERR: Stream interrupted or failed.");
+            } finally {
+                hideToolIndicator();
+                isGenerating = false;
+                submitBtn.disabled = false;
+                chatInput.focus();
+            }
+        });
+
+        // Init Sequence
+        fetchStatus();
+        fetchOutputs();
+        fetchMemory();
+        fetchHistory();
+
+        // Start polling workspace outputs & memory
+        setInterval(fetchStatus, 10000); // Poll skills/tools to enable dynamic reload
+        setInterval(fetchOutputs, 5000);
+        setInterval(fetchMemory, 10000);
+    </script>
+</body>
+
+</html>

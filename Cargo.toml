@@ -1,0 +1,58 @@
+[package]
+name = "tiny_agent_rs"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "tiny_agent_rs"
+path = "src/main.rs"
+
+[dependencies]
+# 非同步執行時（Async Runtime）- 相當於 Python 的 asyncio
+tokio = { version = "1", features = ["full"] }
+
+# Web 框架 - 相當於 Python 的 FastAPI
+axum = { version = "0.7", features = ["multipart"] }
+
+# OpenAI 非同步客戶端 - 相當於 Python 的 openai
+async-openai = "0.27"
+
+# JSON 序列化/反序列化 - 相當於 Python 的 json 模組
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# YAML 解析 - 相當於 Python 的 pyyaml
+serde_yaml = "0.9"
+
+# 錯誤處理 - 相當於 Python 的 Exception
+anyhow = "1"
+
+# Tower HTTP 工具（靜態檔案服務等）
+tower-http = { version = "0.5", features = ["fs", "cors"] }
+tower = "0.4"
+
+# 非同步串流工具
+tokio-stream = { version = "0.1", features = ["sync"] }
+futures = "0.3"
+
+# 日誌
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# 正則表達式 - 相當於 Python 的 re
+regex = "1"
+
+# 目錄遍歷 - 相當於 Python 的 os.walk
+walkdir = "2"
+
+# Base64 編碼 - 相當於 Python 的 base64
+base64 = "0.22"
+
+# MIME 類型猜測 - 相當於 Python 的 mimetypes
+mime_guess = "2"
+
+# 日期時間 - 相當於 Python 的 time/datetime
+chrono = "0.4"
+
+# 讓 trait 裡面可以使用 async fn 的工具庫
+async-trait = "0.1"
