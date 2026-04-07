@@ -152,6 +152,7 @@ impl MemoryStore {
         let _ = self.save_history().await;
     }
 
+    #[allow(dead_code)]
     pub async fn add_tokens(&mut self, prompt: u64, completion: u64) {
         self.tokens.prompt += prompt;
         self.tokens.completion += completion;
